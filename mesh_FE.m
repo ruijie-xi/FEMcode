@@ -44,13 +44,13 @@ if strcmp(basis_type,'P0')
         mesh_FE.T(i,:) =  (1:mesh.N_elem)+(i-1)*mesh.N_elem;
     end
 
-    flag = mesh.E(1,:)==0;
-    Dbndynodes = unique(mesh.E(2,flag));
-    N_bndy = numel(Dbndynodes);
-    mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
-    for i = 1:dim
-        mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_elem;
-    end
+%     flag = mesh.E(1,:)==0;
+%     Dbndynodes = unique(mesh.E(2,flag));
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_elem;
+%     end
 
 elseif strcmp(basis_type,'P1')
 
@@ -64,14 +64,21 @@ elseif strcmp(basis_type,'P1')
     for i = 1:dim
         mesh_FE.T(3*(i-1)+1:3*i,:) = mesh.T + (i-1)*mesh.N_node;
     end
-
-    flag = mesh.E(1,:)==0;
-    Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag)]);
-    N_bndy = numel(Dbndynodes);
-    mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
-    for i = 1:dim
-        mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_node;
+    
+    Edgedofs = zeros(3,2*dim);
+    mesh_FE.N_dofonedge = 2;
+    for i_dim = 1:dim
+        Edgedofs(:,2*(i_dim-1)+1:2*i_dim) = [1,2;2,3;3,1]+mesh_FE.N_lb*(i_dim-1);
     end
+    mesh_FE.Edgedofs = Edgedofs;
+
+%     flag = mesh.E(1,:)==0;
+%     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag)]);
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_node;
+%     end
 
 elseif strcmp(basis_type,'P1dc')
 
@@ -92,24 +99,32 @@ elseif strcmp(basis_type,'P1dc')
         mesh_FE.T(3*i-2,:) = 3*(1:mesh.N_elem)+(i-1)*3*mesh.N_elem-2;
     end
 
-    % boundary dofs
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndy_edges = tmp(flag);
-    N_Dbndyedges = sum(flag);
-    Dbndynodes = zeros(1,2*N_Dbndyedges*dim);
-    count = 0;
-    for i_bndy = 1:N_Dbndyedges
-        i_edge = Dbndy_edges(i_bndy);
-        i_elem = mesh.E(2,i_edge);
-        for i_dim = 1:dim
-            count = count + 1;
-            Dbndynodes(1,count) = 3*(i_elem-1) + (i_dim-1)*3*mesh.N_elem + mesh.ET(2,i_edge);
-            count = count + 1;
-            Dbndynodes(1,count) = 3*(i_elem-1) + (i_dim-1)*3*mesh.N_elem + mod(mesh.ET(2,i_edge),3)+1;
-        end
+    N_dofonedge = 2;
+    Edgedofs = zeros(3,N_dofonedge*dim);
+    for i_dim = 1:dim
+        Edgedofs(:,N_dofonedge*(i_dim-1)+1:N_dofonedge*i_dim) = [1,2;2,3;3,1]+mesh_FE.N_lb*(i_dim-1);
     end
-    mesh_FE.Dbndynodes = unique(Dbndynodes);
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     % boundary dofs
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndy_edges = tmp(flag);
+%     N_Dbndyedges = sum(flag);
+%     Dbndynodes = zeros(1,2*N_Dbndyedges*dim);
+%     count = 0;
+%     for i_bndy = 1:N_Dbndyedges
+%         i_edge = Dbndy_edges(i_bndy);
+%         i_elem = mesh.E(2,i_edge);
+%         for i_dim = 1:dim
+%             count = count + 1;
+%             Dbndynodes(1,count) = 3*(i_elem-1) + (i_dim-1)*3*mesh.N_elem + mesh.ET(2,i_edge);
+%             count = count + 1;
+%             Dbndynodes(1,count) = 3*(i_elem-1) + (i_dim-1)*3*mesh.N_elem + mod(mesh.ET(2,i_edge),3)+1;
+%         end
+%     end
+%     mesh_FE.Dbndynodes = unique(Dbndynodes);
 
 elseif strcmp(basis_type,'DGP1')
     % DGP1 is a discontinuous P1 element, with degrees of freedoms on 3 edges of each triangle
@@ -135,22 +150,30 @@ elseif strcmp(basis_type,'DGP1')
         mesh_FE.T(3*i_dim,:) = 3*(1:mesh.N_elem)+(i_dim-1)*3*mesh.N_elem;
     end
 
-    % boundary dofs
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndy_edges = tmp(flag);
-    N_Dbndyedges = sum(flag);
-    Dbndynodes = zeros(1,N_Dbndyedges*dim);
-    count = 0;
-    for i_bndy = 1:N_Dbndyedges
-        i_edge = Dbndy_edges(i_bndy);
-        i_elem = mesh.E(2,i_edge);
-        for i_dim = 1:dim
-            count = count + 1;
-            Dbndynodes(1,count) = 3*(i_elem-1) + (i_dim-1)*3*mesh.N_elem + mesh.ET(2,i_edge);
-        end
+    N_dofonedge = 1;
+    Edgedofs = zeros(3,N_dofonedge*dim);
+    for i_dim = 1:dim
+        Edgedofs(:,N_dofonedge*(i_dim-1)+1:N_dofonedge*i_dim) = [1;2;3]+mesh_FE.N_lb*(i_dim-1);
     end
-    mesh_FE.Dbndynodes = unique(Dbndynodes);
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+    % boundary dofs
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndy_edges = tmp(flag);
+%     N_Dbndyedges = sum(flag);
+%     Dbndynodes = zeros(1,N_Dbndyedges*dim);
+%     count = 0;
+%     for i_bndy = 1:N_Dbndyedges
+%         i_edge = Dbndy_edges(i_bndy);
+%         i_elem = mesh.E(2,i_edge);
+%         for i_dim = 1:dim
+%             count = count + 1;
+%             Dbndynodes(1,count) = 3*(i_elem-1) + (i_dim-1)*3*mesh.N_elem + mesh.ET(2,i_edge);
+%         end
+%     end
+%     mesh_FE.Dbndynodes = unique(Dbndynodes);
 
  
 elseif strcmp(basis_type,'P2')
@@ -181,14 +204,22 @@ elseif strcmp(basis_type,'P2')
         mesh_FE.T(6*(i-1)+1:6*i,:) = T + (i-1)*N_node;
     end
 
-    flag = mesh.E(1,:)==0;
-    newnodes = mesh.N_node+1:mesh.N_node+mesh.N_edge;
-    Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag),newnodes(flag)]);
-    N_bndy = numel(Dbndynodes);
-    mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
-    for i = 1:dim
-        mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*N_node;
+    N_dofonedge = 3;
+    Edgedofs = zeros(3,N_dofonedge*dim);
+    for i_dim = 1:dim
+        Edgedofs(:,N_dofonedge*(i_dim-1)+1:N_dofonedge*i_dim) = [1,2,4;2,3,5;3,1,6]+mesh_FE.N_lb*(i_dim-1);
     end
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     newnodes = mesh.N_node+1:mesh.N_node+mesh.N_edge;
+%     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag),newnodes(flag)]);
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*N_node;
+%     end
 
 elseif strcmp(basis_type,'bubbleP1')
 
@@ -208,13 +239,21 @@ elseif strcmp(basis_type,'bubbleP1')
         mesh_FE.T(4*(i-1)+1:4*i,:) = [mesh.T;(1:mesh.N_elem)+mesh.N_node] + (i-1)*(mesh.N_node+mesh.N_elem);
     end
 
-    flag = mesh.E(1,:)==0;
-    Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag)]);
-    N_bndy = numel(Dbndynodes);
-    mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
-    for i = 1:dim
-        mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*(mesh.N_node+mesh.N_elem);
+    N_dofonedge = 2;
+    Edgedofs = zeros(3,N_dofonedge*dim);
+    for i_dim = 1:dim
+        Edgedofs(:,N_dofonedge*(i_dim-1)+1:N_dofonedge*i_dim) = [1,2;2,3;3,1]+mesh_FE.N_lb*(i_dim-1);
     end
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag)]);
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*(mesh.N_node+mesh.N_elem);
+%     end
 
 elseif strcmp(basis_type,'CR') || strcmp(basis_type,'CR-P0')
     mesh_FE.dim = dim;
@@ -230,22 +269,23 @@ elseif strcmp(basis_type,'CR') || strcmp(basis_type,'CR-P0')
         mesh_FE.T(3*(i-1)+1:3*i,:) = abs(mesh.TE) + (i-1)*mesh.N_edge;
     end
 
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndynodes = tmp(flag);
-    N_bndy = numel(Dbndynodes);
-    mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
-    for i = 1:dim
-        mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_edge;
-    end
 
-%     flag = mesh.E(1,:)==-1;
-%     bndynodes1 = tmp(flag);
-%     mesh_FE.Dbndynodes = [mesh_FE.Dbndynodes bndynodes1];
-% 
-%     flag = mesh.E(1,:)==-2;
-%     bndynodes2 = tmp(flag);
-%     mesh_FE.Dbndynodes = [mesh_FE.Dbndynodes mesh.N_edge+bndynodes2];
+    N_dofonedge = 1;
+    Edgedofs = zeros(3,N_dofonedge*dim);
+    for i_dim = 1:dim
+        Edgedofs(:,N_dofonedge*(i_dim-1)+1:N_dofonedge*i_dim) = [1;2;3]+mesh_FE.N_lb*(i_dim-1);
+    end
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndynodes = tmp(flag);
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_edge;
+%     end
     
 
 elseif strcmp(basis_type,'CR-RT0')
@@ -263,14 +303,22 @@ elseif strcmp(basis_type,'CR-RT0')
     end
     mesh_FE.T(7:12,:) = mesh_FE.T(1:6,:);
 
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndynodes = tmp(flag);
-    N_bndy = numel(Dbndynodes);
-    mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
-    for i = 1:dim
-        mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_edge;
+    N_dofonedge = 1;
+    Edgedofs = zeros(3,N_dofonedge*dim);
+    for i_dim = 1:dim
+        Edgedofs(:,N_dofonedge*(i_dim-1)+1:N_dofonedge*i_dim) = [1;2;3]+mesh_FE.N_lb*(i_dim-1);
     end
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndynodes = tmp(flag);
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*mesh.N_edge;
+%     end
 
 elseif strcmp(basis_type,'RT0')
 
@@ -285,6 +333,11 @@ elseif strcmp(basis_type,'RT0')
     mesh_FE.N_lb = 3;
     mesh_FE.T = repmat(abs(mesh.TE),2,1);
 
+    N_dofonedge = 1;
+    Edgedofs = [1;2;3];
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
 elseif strcmp(basis_type,'BR') || strcmp(basis_type,'BR-RT0')
     mesh_FE.N_lb = 9;
     mesh_FE.dim = dim;
@@ -298,11 +351,16 @@ elseif strcmp(basis_type,'BR') || strcmp(basis_type,'BR-RT0')
     mesh_FE.T = repmat(T,dim,1);
     mesh_FE.basis_type = basis_type;
 
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag),mesh.E(3,flag)+mesh.N_node,...
-        mesh.E(4,flag)+mesh.N_node, tmp(flag)+2*mesh.N_node]);
-    mesh_FE.Dbndynodes = Dbndynodes;
+    N_dofonedge = 5;
+    Edgedofs = [1,2,4,5,7;2,3,5,6,8;3,1,6,4,9];
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag),mesh.E(3,flag)+mesh.N_node,...
+%         mesh.E(4,flag)+mesh.N_node, tmp(flag)+2*mesh.N_node]);
+%     mesh_FE.Dbndynodes = Dbndynodes;
 
 elseif strcmp(basis_type,'MTW')
     mesh_FE.N_lb = 9;
@@ -348,10 +406,16 @@ elseif strcmp(basis_type,'Ned1-1')
     P = 1:mesh.N_edge;
     mesh_FE.P = P;
     mesh_FE.basis_type = basis_type;
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndynodes = tmp(flag);
-    mesh_FE.Dbndynodes = Dbndynodes;
+
+    N_dofonedge = 1;
+    Edgedofs = [1;2;3];
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndynodes = tmp(flag);
+%     mesh_FE.Dbndynodes = Dbndynodes;
 
 elseif strcmp(basis_type,'Ned1-2')
     mesh_FE.N_lb = 8;
@@ -370,10 +434,15 @@ elseif strcmp(basis_type,'Ned1-2')
     mesh_FE.P = P;
     mesh_FE.basis_type = basis_type;
 
-    flag = mesh.E(1,:)==0;
-    tmp = 1:mesh.N_edge;
-    Dbndynodes = [tmp(flag),mesh.N_edge+tmp(flag)];
-    mesh_FE.Dbndynodes = Dbndynodes;
+    N_dofonedge = 2;
+    Edgedofs = [1,2;3,4;5,6];
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+%     flag = mesh.E(1,:)==0;
+%     tmp = 1:mesh.N_edge;
+%     Dbndynodes = [tmp(flag),mesh.N_edge+tmp(flag)];
+%     mesh_FE.Dbndynodes = Dbndynodes;
 
 elseif strcmp(basis_type,'Ned2-1')
     mesh_FE.N_lb = 6;
@@ -389,6 +458,11 @@ elseif strcmp(basis_type,'Ned2-1')
     P = [1:mesh.N_edge,1:mesh.N_edge];
     mesh_FE.P = P;
     mesh_FE.basis_type = basis_type;
+
+    N_dofonedge = 1;
+    Edgedofs = [1,2;3,4;5,6];
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
 
     flag = mesh.E(1,:)==0;
     tmp = 1:mesh.N_edge;
