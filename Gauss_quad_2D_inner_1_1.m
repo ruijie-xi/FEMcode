@@ -1,0 +1,6 @@
+function int_value = Gauss_quad_2D_inner_1_1(mesh,i_elem,vec_1,mesh_FE_1,dx_1,dy_1,i_vec_1,...
+    vec_2,mesh_FE_2,dx_2,dy_2,i_vec_2,Gauss_pts,Gauss_weights)
+% compute local inner products.
+
+int_value = (FE_function_local_2D_read(vec_1,mesh,mesh_FE_1,i_elem,i_vec_1,dx_1,dy_1)).*...
+(FE_function_local_2D_read(vec_2,mesh,mesh_FE_2,i_elem,i_vec_2,dx_2,dy_2))*Gauss_weights';
