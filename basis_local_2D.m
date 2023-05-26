@@ -13,7 +13,7 @@ num_basis = mesh_FE.N_lb;
 dim = mesh_FE.dim;
 zero = zeros(num_basis,num_pts);
 
-if strcmp(basis_type(1),'P') || strcmp(basis_type,'CR') || strcmp(basis_type,'CR-P0') || strcmp(basis_type,'bubbleP1') || strcmp(basis_type,'DGP1')
+if strcmp(basis_type(1),'P') || strcmp(basis_type,'CR') || strcmp(basis_type,'CR-P0') || strcmp(basis_type,'bubbleP1') || strcmp(basis_type,'DGP1') || strcmp(basis_type,'DG-P2-quad')
     % obtain reference coordinates [xh,yh]
     % Note that [x;y] = [x1;y1]+J*[xh;yh].
     J = [x2-x1,x3-x1;y2-y1,y3-y1];

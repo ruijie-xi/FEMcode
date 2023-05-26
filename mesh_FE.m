@@ -221,6 +221,52 @@ elseif strcmp(basis_type,'P2')
 %         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*N_node;
 %     end
 
+elseif strcmp(basis_type,'DG-P2-quad')
+    % NO DIRICHLET NODES!!!
+
+    mesh_FE.dim = dim;
+    mesh_FE.N_lb = 6;
+    mesh_FE.basis_type = basis_type;
+
+    N_node = 6*mesh.N_elem;
+    mesh_FE.N_node = N_node*dim;
+    mesh_FE.idx = kron(1:dim,ones(1,N_node));
+
+    ref_pts = [0.108103018168070 0.445948490915965;
+      0.445948490915965 0.108103018168070;
+      0.445948490915965 0.445948490915965
+      0.816847572980459 0.091576213509771;
+      0.091576213509771 0.816847572980459;
+      0.091576213509771 0.091576213509771]';
+
+    P = zeros(2,N_node);
+    for i_elem = 1:mesh.N_elem
+        vertices = mesh.P(:,mesh.T(:,i_elem));
+        pts = map_ref_to_phy(vertices,ref_pts);
+        P(:,(i_elem-1)*6+1:i_elem*6) = pts;
+    end
+    mesh_FE.P = repmat(P,1,dim);
+
+    mesh_FE.T = zeros(6*dim,mesh.N_elem);
+    for i_dim = 1:dim
+        mesh_FE.T(6*i_dim-5,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem-5;
+        mesh_FE.T(6*i_dim-4,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem-4;
+        mesh_FE.T(6*i_dim-3,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem-3;
+        mesh_FE.T(6*i_dim-2,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem-2;
+        mesh_FE.T(6*i_dim-1,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem-1;
+        mesh_FE.T(6*i_dim,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem;
+    end
+
+%     flag = mesh.E(1,:)==0;
+%     newnodes = mesh.N_node+1:mesh.N_node+mesh.N_edge;
+%     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag),newnodes(flag)]);
+%     N_bndy = numel(Dbndynodes);
+%     mesh_FE.Dbndynodes = zeros(1,dim*N_bndy);
+%     for i = 1:dim
+%         mesh_FE.Dbndynodes(1+(i-1)*N_bndy:i*N_bndy) = Dbndynodes + (i-1)*N_node;
+%     end
+
+
 elseif strcmp(basis_type,'bubbleP1')
 
     mesh_FE.dim = dim;

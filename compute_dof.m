@@ -1,7 +1,7 @@
 function result = compute_dof(fun,mesh,mesh_FE,i)
 % compute the degrees of freedom of a certain function.
 
-if strcmp(mesh_FE.basis_type(1),'P') || strcmp(mesh_FE.basis_type,'bubbleP1') || strcmp(mesh_FE.basis_type,'DGP1')
+if strcmp(mesh_FE.basis_type(1),'P') || strcmp(mesh_FE.basis_type,'bubbleP1') || strcmp(mesh_FE.basis_type,'DGP1') || strcmp(mesh_FE.basis_type,'DG-P2-quad')
     result = fun(mesh_FE.P(:,i));
     result = result(mesh_FE.idx(i));
 elseif strcmp(mesh_FE.basis_type,'CR') || strcmp(mesh_FE.basis_type,'CR-P0') || strcmp(mesh_FE.basis_type,'CR-RT0') 
