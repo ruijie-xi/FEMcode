@@ -28,7 +28,20 @@ elseif strcmp(error_type,'H1')
     end
     err = sqrt(err);
 
-elseif strcmp(error_type,'H10')
+elseif strcmp(error_type,'Hdiv-semi')
+    assert(mesh_trial.dim==2);
+    err = 0;
+    for n = 1:mesh.N_elem
+        vertices = mesh.P(:,mesh.T(:,n));
+        [weights,pts] = generate_Gauss_local_triangle(vertices,Gauss_type);
+        err = err + Gauss_quad_2D_norm(vector,pts,weights,...
+                mesh,mesh_trial,n,1,0,1);
+        err = err + Gauss_quad_2D_norm(vector,pts,weights,...
+                mesh,mesh_trial,n,0,1,2);
+    end
+    err = sqrt(err);
+
+elseif strcmp(error_type,'H1-semi')
     err = 0;
     for n = 1:mesh.N_elem
         vertices = mesh.P(:,mesh.T(:,n));
