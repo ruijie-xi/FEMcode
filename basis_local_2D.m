@@ -102,7 +102,7 @@ elseif strcmp(basis_type,'CR-RT0')
         fprintf('cannot handle this type of derivative!');
     end
 
-elseif strcmp(basis_type,'BR') || strcmp(basis_type,'BR-RT0')
+elseif strcmp(basis_type,'BR0') || strcmp(basis_type,'BR-RT0')
     % obtain reference coordinates [xh,yh]
     % Note that [x;y] = [x1;y1]+J*[xh;yh].
     J = [x2-x1,x3-x1;y2-y1,y3-y1];
@@ -158,6 +158,74 @@ elseif strcmp(basis_type,'BR') || strcmp(basis_type,'BR-RT0')
 
         result(1,:,:) = A*reshape(basis_dy(1,:,:),num_basis,num_pts);
         result(2,:,:) = A*reshape(basis_dy(2,:,:),num_basis,num_pts);
+    else
+        fprintf('cannot handle this type of derivative!');
+    end
+
+elseif strcmp(basis_type,'BR')
+    % obtain reference coordinates [xh,yh]
+    % Note that [x;y] = [x1;y1]+J*[xh;yh].
+    J = [x2-x1,x3-x1;y2-y1,y3-y1];
+    coords_h = J\([x;y]-vertices(:,1));
+    J0 = det(J);
+
+    s = sign(mesh.TE(:,i_elem));
+
+    n1_hat = [1;0];
+    n2_hat = [0;1];
+    n1 = (J')\n1_hat*J0;
+    n2 = (J')\n2_hat*J0;
+
+
+    if dx==0 && dy==0
+        basis_ref = basis_reference_2D(coords_h,basis_type,dx,dy);
+
+        basis_ref = reshape(basis_ref,2,num_basis*num_pts);
+        basis = (1/J0)*J*basis_ref;
+        basis = reshape(basis,2,num_basis,num_pts);
+
+        result = basis;
+
+        for i = 1:3
+            result(:,2*i-1,:) = n1(1)*basis(:,2*i-1,:) + n2(1)*basis(:,2*i,:);
+            result(:,2*i,:) = n1(2)*basis(:,2*i-1,:) + n2(2)*basis(:,2*i,:);
+            result(:,6+i,:) = s(i)*basis(:,6+i,:);
+        end
+
+    elseif dx==1 && dy==0
+        basis_ref_dxh = basis_reference_2D(coords_h,basis_type,1,0);
+        basis_ref_dyh = basis_reference_2D(coords_h,basis_type,0,1);
+        basis_ref_dx = basis_ref_dxh*(y3-y1)/J0+basis_ref_dyh*(y1-y2)/J0;
+
+        basis_ref_dx = reshape(basis_ref_dx,2,num_basis*num_pts);
+        basis_dx = (1/J0)*J*basis_ref_dx;
+        basis_dx = reshape(basis_dx,2,num_basis,num_pts);
+
+        result = basis_dx;
+
+        for i = 1:3
+            result(:,2*i-1,:) = n1(1)*basis_dx(:,2*i-1,:) + n2(1)*basis_dx(:,2*i,:);
+            result(:,2*i,:) = n1(2)*basis_dx(:,2*i-1,:) + n2(2)*basis_dx(:,2*i,:);
+            result(:,6+i,:) = s(i)*basis_dx(:,6+i,:);
+        end
+
+    elseif dx==0 && dy==1
+        basis_ref_dxh = basis_reference_2D(coords_h,basis_type,1,0);
+        basis_ref_dyh = basis_reference_2D(coords_h,basis_type,0,1);
+        basis_ref_dy =  basis_ref_dxh*(x1-x3)/J0+basis_ref_dyh*(x2-x1)/J0;
+
+        basis_ref_dy = reshape(basis_ref_dy,2,num_basis*num_pts);
+        basis_dy = (1/J0)*J*basis_ref_dy;
+        basis_dy = reshape(basis_dy,2,num_basis,num_pts);
+
+        result = basis_dy;
+
+        for i = 1:3
+            result(:,2*i-1,:) = n1(1)*basis_dy(:,2*i-1,:) + n2(1)*basis_dy(:,2*i,:);
+            result(:,2*i,:) = n1(2)*basis_dy(:,2*i-1,:) + n2(2)*basis_dy(:,2*i,:);
+            result(:,6+i,:) = s(i)*basis_dy(:,6+i,:);
+        end
+        
     else
         fprintf('cannot handle this type of derivative!');
     end

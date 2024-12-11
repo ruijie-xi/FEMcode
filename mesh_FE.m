@@ -27,6 +27,10 @@ function mesh_FE = mesh_FE(basis_type,dim,mesh,Gauss_type_2D,Gauss_type_1D,bndy_
 
 if strcmp(basis_type,'P0')
 
+    mesh_FE.N_dof_node = 0;
+    mesh_FE.N_dof_edge = 0;
+    mesh_FE.N_dof_elem = 1;
+
     mesh_FE.dim = dim;
     mesh_FE.N_lb = 1;
     P = zeros(2,mesh.N_elem);
@@ -44,6 +48,8 @@ if strcmp(basis_type,'P0')
         mesh_FE.T(i,:) =  (1:mesh.N_elem)+(i-1)*mesh.N_elem;
     end
 
+    mesh_FE.IsStack = 1;
+
 %     flag = mesh.E(1,:)==0;
 %     Dbndynodes = unique(mesh.E(2,flag));
 %     N_bndy = numel(Dbndynodes);
@@ -53,6 +59,10 @@ if strcmp(basis_type,'P0')
 %     end
 
 elseif strcmp(basis_type,'P1')
+
+    mesh_FE.N_dof_node = 1;
+    mesh_FE.N_dof_edge = 0;
+    mesh_FE.N_dof_elem = 0;
 
     mesh_FE.dim = dim;
     mesh_FE.N_lb = 3;
@@ -71,6 +81,9 @@ elseif strcmp(basis_type,'P1')
         Edgedofs(:,2*(i_dim-1)+1:2*i_dim) = [1,2;2,3;3,1]+mesh_FE.N_lb*(i_dim-1);
     end
     mesh_FE.Edgedofs = Edgedofs;
+
+    mesh_FE.IsStack = 1;
+
 
 %     flag = mesh.E(1,:)==0;
 %     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag)]);
@@ -106,6 +119,9 @@ elseif strcmp(basis_type,'P1dc')
     end
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 1;
+
 
 %     % boundary dofs
 %     flag = mesh.E(1,:)==0;
@@ -158,6 +174,9 @@ elseif strcmp(basis_type,'DGP1')
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
 
+    mesh_FE.IsStack = 1;
+
+
     % boundary dofs
 %     flag = mesh.E(1,:)==0;
 %     tmp = 1:mesh.N_edge;
@@ -177,6 +196,10 @@ elseif strcmp(basis_type,'DGP1')
 
  
 elseif strcmp(basis_type,'P2')
+
+    mesh_FE.N_dof_node = 1;
+    mesh_FE.N_dof_edge = 1;
+    mesh_FE.N_dof_elem = 0;
 
     mesh_FE.dim = dim;
     mesh_FE.N_lb = 6;
@@ -211,6 +234,9 @@ elseif strcmp(basis_type,'P2')
     end
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 1;
+
 
 %     flag = mesh.E(1,:)==0;
 %     newnodes = mesh.N_node+1:mesh.N_node+mesh.N_edge;
@@ -257,6 +283,9 @@ elseif strcmp(basis_type,'DG-P2-quad')
         mesh_FE.T(6*i_dim,:) = 6*(1:mesh.N_elem)+(i_dim-1)*6*mesh.N_elem;
     end
 
+    mesh_FE.IsStack = 1;
+
+
 %     flag = mesh.E(1,:)==0;
 %     newnodes = mesh.N_node+1:mesh.N_node+mesh.N_edge;
 %     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag),newnodes(flag)]);
@@ -292,6 +321,8 @@ elseif strcmp(basis_type,'bubbleP1')
     end
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+    mesh_FE.IsStack = 1;
+
 
 %     flag = mesh.E(1,:)==0;
 %     Dbndynodes = unique([mesh.E(3,flag),mesh.E(4,flag)]);
@@ -302,6 +333,11 @@ elseif strcmp(basis_type,'bubbleP1')
 %     end
 
 elseif strcmp(basis_type,'CR') || strcmp(basis_type,'CR-P0')
+
+    mesh_FE.N_dof_node = 0;
+    mesh_FE.N_dof_edge = 1;
+    mesh_FE.N_dof_elem = 0;
+
     mesh_FE.dim = dim;
     mesh_FE.N_lb = 3;
 
@@ -323,6 +359,9 @@ elseif strcmp(basis_type,'CR') || strcmp(basis_type,'CR-P0')
     end
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 1;
+
 
 %     flag = mesh.E(1,:)==0;
 %     tmp = 1:mesh.N_edge;
@@ -357,6 +396,9 @@ elseif strcmp(basis_type,'CR-RT0')
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
 
+    mesh_FE.IsStack = 1;
+
+
 %     flag = mesh.E(1,:)==0;
 %     tmp = 1:mesh.N_edge;
 %     Dbndynodes = tmp(flag);
@@ -367,6 +409,10 @@ elseif strcmp(basis_type,'CR-RT0')
 %     end
 
 elseif strcmp(basis_type,'RT0')
+
+    mesh_FE.N_dof_node = 0;
+    mesh_FE.N_dof_edge = 1;
+    mesh_FE.N_dof_elem = 0;
 
     mesh_FE.dim = dim;
     mesh_FE.N_node = mesh.N_edge;
@@ -384,8 +430,14 @@ elseif strcmp(basis_type,'RT0')
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
 
-elseif strcmp(basis_type,'BR') || strcmp(basis_type,'BR-RT0')
+    mesh_FE.IsStack = 0;
+
+% Old version of BR
+elseif strcmp(basis_type,'BR0') || strcmp(basis_type,'BR-RT0')
     mesh_FE.N_lb = 9;
+    mesh_FE.N_dof_node = 2;
+    mesh_FE.N_dof_edge = 1;
+    mesh_FE.N_dof_elem = 0;
     mesh_FE.dim = dim;
     mesh_FE.N_node = 2*mesh.N_node+mesh.N_edge;
     P = [mesh.P,mesh.P,repmat(1:mesh.N_edge,2,1)];
@@ -401,6 +453,31 @@ elseif strcmp(basis_type,'BR') || strcmp(basis_type,'BR-RT0')
     Edgedofs = [1,2,4,5,7;2,3,5,6,8;3,1,6,4,9];
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 0;
+
+elseif strcmp(basis_type,'BR')
+    mesh_FE.N_lb = 9;
+    mesh_FE.N_dof_node = 2;
+    mesh_FE.N_dof_edge = 1;
+    mesh_FE.N_dof_elem = 0;
+    mesh_FE.dim = dim;
+    mesh_FE.N_node = 2*mesh.N_node+mesh.N_edge;
+    
+    T = zeros(9,mesh.N_elem);
+    T([1,3,5],:) = 2*(mesh.T-1)+1;
+    T([2,4,6],:) = 2*mesh.T;
+    T(7:9,:) = abs(mesh.TE)+2*mesh.N_node;
+    mesh_FE.T = repmat(T,dim,1);
+    mesh_FE.basis_type = basis_type;
+
+    N_dofonedge = 5;
+    Edgedofs = [1,2,3,4,7;3,4,5,6,8;1,2,5,6,9];
+    mesh_FE.Edgedofs = Edgedofs;
+    mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 0;
+
 
 %     flag = mesh.E(1,:)==0;
 %     tmp = 1:mesh.N_edge;
@@ -426,6 +503,10 @@ elseif strcmp(basis_type,'MTW')
     tmp = 1:mesh.N_edge;
     Dbndynodes = [tmp(flag),tmp(flag)+mesh.N_edge,tmp(flag)+mesh.N_edge*2];
     mesh_FE.Dbndynodes = Dbndynodes;
+
+    mesh_FE.IsStack = 0;
+
+
 elseif strcmp(basis_type,'RT0-MTW')
     mesh_FE.N_lb = 6;
     mesh_FE.dim = dim;
@@ -443,6 +524,9 @@ elseif strcmp(basis_type,'RT0-MTW')
     Dbndynodes = [tmp(flag),tmp(flag)+mesh.N_edge];
     mesh_FE.Dbndynodes = Dbndynodes;
 
+    mesh_FE.IsStack = 0;
+
+
 elseif strcmp(basis_type,'Ned1-1')
     mesh_FE.N_lb = 3;
     mesh_FE.dim = dim;
@@ -457,6 +541,9 @@ elseif strcmp(basis_type,'Ned1-1')
     Edgedofs = [1;2;3];
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 0;
+
 
 %     flag = mesh.E(1,:)==0;
 %     tmp = 1:mesh.N_edge;
@@ -484,6 +571,9 @@ elseif strcmp(basis_type,'Ned1-2')
     Edgedofs = [1,2;3,4;5,6];
     mesh_FE.Edgedofs = Edgedofs;
     mesh_FE.N_dofonedge = N_dofonedge;
+
+    mesh_FE.IsStack = 0;
+
 
 %     flag = mesh.E(1,:)==0;
 %     tmp = 1:mesh.N_edge;
@@ -514,6 +604,9 @@ elseif strcmp(basis_type,'Ned2-1')
     tmp = 1:mesh.N_edge;
     Dbndynodes = [tmp(flag),mesh.N_edge+tmp(flag)];
     mesh_FE.Dbndynodes = Dbndynodes;
+
+    mesh_FE.IsStack = 0;
+
 
 else
     fprintf('cannot handle the basis type!\n');

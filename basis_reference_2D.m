@@ -180,7 +180,7 @@ elseif strcmp(basis_type,'RT0')
     result(1,:,:) = A1*b;
     result(2,:,:) = A2*b;
 
-elseif strcmp(basis_type,'BR')
+elseif strcmp(basis_type,'BR0')
     result = zeros(2,9,num_pts);
     A1 = [0,0,0,0,0,0;
         0,1,0,0,0,0;
@@ -218,6 +218,47 @@ elseif strcmp(basis_type,'BR')
 
     result(1,:,:) = A1*b;
     result(2,:,:) = A2*b;
+
+elseif strcmp(basis_type,'BR')
+    result = zeros(2,9,num_pts);
+    A1 = [1,-1,-4,0,3,3;
+          0,0,0,0,0,0;
+          0,1,0,0,-1.5,0;
+          0,0,0,0,-1.5,0;
+          0,0,-2,0,1.5,3;
+          0,0,0,0,-1.5,0;
+          0,0,0,0,0,0;
+          0,0,0,0,3,0;
+          0,0,-6,0,6,6];
+    A2 = [0,0,0,0,0,0;
+          1,-4,-1,3,3,0;
+          0,0,0,0,-1.5,0;
+          0,-2,0,3,1.5,0;
+          0,0,0,0,-1.5,0;
+          0,0,1,0,-1.5,0;
+          0,-6,0,6,6,0;
+          0,0,0,0,3,0;
+          0,0,0,0,0,0];
+
+    if dx==0 && dy==0
+        b = [one;x;y;x.^2;x.*y;y.^2];
+    elseif dx==1 && dy==0
+        b = [zero;one;zero;2*x;y;zero];
+    elseif dx==0 && dy==1
+        b = [zero;zero;one;zero;x;2*y];
+    elseif dx==2 && dy==0
+        b = [zero;zero;zero;2*one;zero;zero];
+    elseif dx==1 && dy==1
+        b = [zero;zero;zero;zero;one;zero];
+    elseif dx==0 && dy==2
+        b = [zero;zero;zero;zero;zero;2*one];
+    else
+        b = zeros(6,num_pts);
+    end
+
+    result(1,:,:) = A1*b;
+    result(2,:,:) = A2*b;
+
 elseif strcmp(basis_type,'BR-RT0')
     result = zeros(2,9,num_pts);
     A1 = [0,0,0,0,0,0;

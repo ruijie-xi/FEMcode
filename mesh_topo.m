@@ -169,6 +169,60 @@ for i_elem = 1:N_elem
     area = area + elem_area;
 end
 
+% generate boxes to make it easier to find element containing a point
+xmin = min(P(1,:));
+ymin = min(P(2,:));
+xmax = max(P(1,:));
+ymax = max(P(2,:));
+
+Nx = ceil((xmax-xmin)/hmax);
+Ny = ceil((ymax-ymin)/hmax);
+hx = (xmax-xmin)/Nx;
+hy = (ymax-ymin)/Ny;
+boxes = cell(Nx,Ny);
+for i_elem=1:N_elem
+    vertices = P(:,T(:,i_elem));
+    elemxmin = min(vertices(1,:));
+    elemxmax = max(vertices(1,:));
+    elemymin = min(vertices(2,:));
+    elemymax = max(vertices(2,:));
+
+    boxleft = ceil((elemxmin-xmin)/hx)-1;
+    boxright = ceil((elemxmax-xmin)/hx)+1;
+    boxbottom = ceil((elemymin-ymin)/hy)-1;
+    boxtop = ceil((elemymax-ymin)/hy)+1;
+    boxleft = min([max([1,boxleft]),Nx]);
+    boxright = min([max([1,boxright]),Nx]);
+    boxtop = min([max([1,boxtop]),Ny]);
+    boxbottom = min([max([1,boxbottom]),Ny]);
+
+    for i_box = boxleft:boxright
+        for j_box = boxbottom:boxtop
+            boxes{i_box,j_box} = [boxes{i_box,j_box} i_elem];
+        end
+    end
+end
+
+% neighbor matrix from element to node (N_elem x N_node)
+neigh_i = zeros(N_le*N_elem,1);
+neigh_j = zeros(N_le*N_elem,1);
+neigh_v = ones(N_le*N_elem,1);
+for i_elem = 1:N_elem
+    neigh_i((i_elem-1)*N_le+1:i_elem*N_le) = i_elem;
+    neigh_j((i_elem-1)*N_le+1:i_elem*N_le) = T(:,i_elem);
+end
+Mat_elem_node = sparse(neigh_i,neigh_j,neigh_v);
+
+% neighbor matrix from element to edge (N_elem x N_edge)
+neigh_i = zeros(N_le*N_elem,1);
+neigh_j = zeros(N_le*N_elem,1);
+neigh_v = ones(N_le*N_elem,1);
+for i_elem = 1:N_elem
+    neigh_i((i_elem-1)*N_le+1:i_elem*N_le) = i_elem;
+    neigh_j((i_elem-1)*N_le+1:i_elem*N_le) = abs(TE(:,i_elem));
+end
+Mat_elem_edge = sparse(neigh_i,neigh_j,neigh_v);
+
 mesh.T = T;
 mesh.P = P;
 mesh.E = E;
@@ -186,6 +240,13 @@ mesh.hmax = hmax;
 mesh.area = area;
 mesh.min_area = min_area;
 mesh.max_area = max_area;
+mesh.xmin = xmin;
+mesh.xmax = xmax;
+mesh.ymin = ymin;
+mesh.ymax = ymax;
+mesh.boxes = boxes;
+mesh.Mat_elem_node = Mat_elem_node;
+mesh.Mat_elem_edge = Mat_elem_edge;
 end
 
 
