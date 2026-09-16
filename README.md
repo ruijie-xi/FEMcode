@@ -1,139 +1,151 @@
-
 # FEMcode
 
-这是一个基于MATLAB的有限元程序包。
+MATLAB finite element routines for research and learning on two-dimensional triangular meshes.
 
-这个MATLAB程序包的雏形是根据密苏里科技大学何晓明老师的[有限元编程课](https://www.bilibili.com/video/BV1Zv411t7Lj)的内容编写的，后来又自己做了一些修改与升级。
+[简体中文](README.zh-CN.md)
 
-- [FEMcode](#femcode)
-  - [网格结构](#网格结构)
-    - [T, P矩阵](#t-p矩阵)
-    - [网格拓扑结构](#网格拓扑结构)
-  - [有限元网格结构](#有限元网格结构)
-  - [有限元的定义](#有限元的定义)
-  - [组装器](#组装器)
-  - [误差计算](#误差计算)
-  - [其他工具](#其他工具)
-    - [可视化](#可视化)
-  - [开发](#开发)
-    - [创建新的有限元](#创建新的有限元)
-    - [创建新的组装器](#创建新的组装器)
-  - [范例](#范例)
-    - [入门：Poisson方程](#入门poisson方程)
-    - [混合有限元：不可压缩Stokes方程](#混合有限元不可压缩stokes方程)
-    - [非定常问题：磁扩散方程](#非定常问题磁扩散方程)
-    - [更多的扩展：以ALE方法为例](#更多的扩展以ale方法为例)
+FEMcode provides mesh topology, finite element spaces, basis evaluation, sparse assembly, boundary treatment, interpolation, error measurement, and plotting. It is a research codebase with a runnable Poisson example and focused regression checks; comprehensive validation of all element types is still incomplete.
 
+## Requirements and quick start
 
-## 网格结构
+- MATLAB. A minimum supported release has not been established; GNU Octave compatibility has not been verified.
+- Optional: external DistMesh for `mesh_circle_triangle` and `mesh_square_triangle_unstructured`. It is not bundled and is not needed for the structured Poisson example.
 
-### T, P矩阵
+Open MATLAB in the repository root and run:
 
-描述网格最简单的方法是通过两个矩阵：T和P。P为2\*Np的矩阵（Np表示节点总个数），每一列存放某个点的x,y坐标；T为3(4)\*Nt的矩阵（Nt表示单元总个数），每一列存放着某个单元的3或4个顶点在P中的编号（即位于P的哪一列）。使用[distmesh](http://persson.berkeley.edu/distmesh/)或者MATLAB自带的某些函数可以生成类似的T, P矩阵。
-
-在本程序包中，提供一个简单的结构三角剖分函数`mesh_square_triangle`，用法为
-
-```MATLAB
-[T,P] = mesh_square_triangle(left,right,bottom,top,Nx,Ny);
+```matlab
+addpath(pwd);
+addpath(fullfile(pwd,'poisson'));
+solver_2D_Poisson_d;
 ```
 
-生成的网格区域为[left, right]*[bottom, top]，x坐标轴上做Nx等分，y坐标轴上做Ny等分。
+The example uses P1 elements on a structured triangular mesh with 100 subdivisions per coordinate direction. It solves
 
-### 网格拓扑结构
+$$
+-\Delta u=-2e^{x+y}\quad\text{in }(-1,1)^2,
+\qquad u=e^{x+y}\quad\text{on the boundary}.
+$$
 
-在实际的有限元编程中，仅靠T, P矩阵来存放网格是不够的，还需要更详细的网格信息，这里成为网格拓扑结构。生成一个带有详细信息的网格可用`mesh_topo`函数来实现，用法为
+The exact solution is `exp(x+y)`. The program prints mesh size, elapsed time, and L2, H1, and sampled maximum errors. Problem data are in `poisson/fun_*.m`.
 
-```MATLAB
-mesh = mesh_topo(T,P,Dbndy,Nbndy,Rbndy);
+## Implemented spaces
+
+These identifiers have implementation branches; inclusion does not imply comprehensive numerical verification.
+
+| Family | Identifiers |
+| --- | --- |
+| Piecewise polynomial and enriched scalar spaces | `P0`, `P1`, `P2`, `bubbleP1` |
+| Discontinuous spaces | `P1dc`, `DGP1`, `DG-P2-quad` |
+| Crouzeix–Raviart | `CR` |
+| Raviart–Thomas | `RT0` |
+| Bernardi–Raugel and Mardal–Tai–Winther | `BR`, `MTW` |
+| Nédélec | `Ned1-1`, `Ned1-2`, `Ned2-1` |
+| Research/legacy variants | `CR-P0`, `CR-RT0`, `BR0`, `BR-RT0`, `RT0-MTW` |
+
+Scalar spaces can be stacked through `dim`. Intrinsically vector-valued spaces such as RT0 and Nédélec use `dim = 2` and share degrees of freedom across vector-basis components. Consult the implementation before using research variants. Complete quadrilateral and three-dimensional workflows are not provided.
+
+## Core workflow
+
+```matlab
+[T,P] = mesh_square_triangle(0,1,0,1,16,16);
+mesh = mesh_topo(T,P);
+space = mesh_FE('P1',1,mesh,3,0,[]);
+A = assemble_matrix_2D(@(x) ones(1,size(x,2)),[1,1], ...
+    mesh,space,space,[1,1,1,0,1,0;1,1,0,1,0,1],3);
 ```
 
-其中，T, P为网格的T, P矩阵，`Dbndy`，`Nbndy`，`Rbndy`分别为Dirichlet边界，Neumann边界和Robin边界的函数。以[0, 1]*[0, 1]的四条边界全部为Dirichlet为例：
-```MATLAB
-Dbndy = @(x) min(abs([x(1),x(1)-1,x(2),x(2)-1]));
+This constructs a mesh, a scalar P1 space, and a Laplace stiffness matrix. The Poisson example shows load assembly, boundary treatment, and solution.
+
+### Mesh and degrees of freedom
+
+`P` is a `2 x N_node` coordinate array; `T` is a `3 x N_elem` vertex-index array. `mesh_topo` makes triangle orientation consistent and builds connectivity.
+
+| Field | Meaning |
+| --- | --- |
+| `mesh.E` | Two adjacent element slots followed by two endpoint indices for each oriented edge |
+| `mesh.TE` | Signed global edge indices; local order `(1,2)`, `(2,3)`, `(3,1)` |
+| `mesh.ET` | Local edge numbers in the adjacent elements, corresponding to `E(1:2,:)` |
+| `mesh.tau`, `mesh.N` | Unit tangent and its clockwise-rotated unit normal |
+| `mesh.s`, `mesh.hmax` | Edge lengths and maximum triangle edge length |
+
+On boundary edges, `E(2,:)` holds the element and `E(1,:)` holds a nonpositive boundary label. `mesh_topo(T,P)` labels all boundary edges zero. Optional functions in `mesh_topo(T,P,f0,f1,...)` assign labels `0,-1,...` when both endpoints satisfy the function's zero test. Unmatched boundary edges remain zero. Labels select edges; they do not impose boundary conditions by themselves.
+
+The space constructor takes six arguments:
+
+```matlab
+space = mesh_FE(basis_type,dim,mesh,Gauss_type_2D,Gauss_type_1D,bndy_number);
 ```
 
-返回的`mesh`是一个结构体。它有以下成员：
+- `Gauss_type_2D`: triangle quadrature point count (`1`, `3`, `4`, or `9`), also used to cache basis values and first derivatives.
+- `Gauss_type_1D`: edge quadrature point count (`1`–`5`); `0` skips edge caching.
+- `bndy_number`: a boundary label for edge caching; `[]` includes all edges.
 
-* `mesh.T`：即为传入的参数`T`。
-* `mesh.P`：即为传入的参数`P`。
-* `mesh.E`：存储网格中每一条边的信息。设边的个数为Ne，则`mesh.E`为4*Ne的矩阵。第i列存储第i条边的信息，其第1，2行存储该边的左右两个相邻单元的编号，第3，4行存储该条边的两个顶点的编号。如果该条边为边界上的边，则它唯一一个相邻单元编号将存储在第2行，而第一行存储该条边界边的类型。如下表所示：
+`space.N_node` means **total degrees of freedom**, despite its name. `N_lb` is the local basis count; `T` maps local to global degrees of freedom; `basis_type` stores the character identifier. `space.P` contains coordinates or element-dependent degree-of-freedom metadata. Vector-basis components may share global indices. Use `get_Dbndynodes(mesh,space,label)` to retrieve boundary degrees of freedom; not every space provides a `Dbndynodes` field.
 
-|第一行的值|边界类型|
-|:-------:|:-----:|
-|0        |Dirichlet|
-|-1        |Neumann|
-|-2        |Robin  |
+### Assembly and cache conventions
 
-注意，如果某条边的两个顶点都在Rbndy上，那么该边就将定义为Robin边界。Neumann边界类似。如果某条边界边不在Dbndy，Nbndy和Rbndy上定义，它默认将成为Dirichlet边界。
+`assemble_matrix_2D` assembles terms of the form
 
-* `mesh.TE`：存储每个单元三条边的编号。该矩阵为3(4)*Nt矩阵，第i列存储第i个单元的三条边的编号。三条边的顺序依次为：连接顶点1与顶点2的边、连接顶点2与顶点3的边、连接顶点3与顶点1的边。在每个单元中，默认的边界定向为：单元落在边界定向的左侧。而在`mesh.E`中的每一条边都带有一个固有的定向，即从第三行表示的顶点指向第四行表示的顶点。因此，如果某单元的某边所固有的定向与该单元内默认定向相反，那么其存储的编号为负值，绝对值不变。
-* `mesh.N`：存储每条边的单位法向。该矩阵为2*Ne矩阵，第i列存储第i条边的单位法向。这里的单位法向与每条边本身自带定向有关，是指在自带定向的方向下顺时针旋转90度后得到的方向。通过这样定义，如果某单元内某边的固有定向与其在单元内的默认定向一致（即TE中的编号为正），那么对应的单位法向正好就是单元的外法向。
-* `mesh.tau`：存储每条边的单位切向。该矩阵为2*Ne矩阵，第i列存储第i条边的单位切向。此切向与边的固有定向一致。
-* `mesh.N_elem`：单元总个数。
-* `mesh.N_node`：节点总个数。
-* `mesh.N_edge`：边的总个数。
-* `mesh.type`：网格剖分类型，若为3则为三角剖分，若为4则为四边形剖分。
-* `mesh.s`：每条边的长度。为1*Ne向量。
+$$
+c\int_\Omega f\,(\partial_x^i\partial_y^j u_k)
+(\partial_x^m\partial_y^n v_l)\,dx.
+$$
 
-## 有限元网格结构
+Each row of `mat_info` is `[k,l,i,j,m,n]`; `coe_num` supplies the scalar coefficients. Trial and test spaces are separate arguments. `assemble_vector_2D` assembles loads. The `*_FE_*` assemblers accept finite element coefficient functions; see their source headers for argument conventions.
 
-在网格结构的基础上，可以定义各种类型的有限元结构。这个过程可以用`mesh_FE`来完成，用法为：
+`treat_Dirichlet(A,b,mesh,space,label,boundary_fun)` replaces matrix rows to prescribe degrees of freedom. This generally does not preserve symmetry. The Poisson example uses MATLAB's direct backslash solver.
 
-```MATLAB
-mesh_FE = mesh_FE(basis_type,dim,mesh);
+**Quadrature must match the basis cache.** Assemblers and cached error routines must use the triangle rule used to construct the space. Before evaluating an existing solution with a different error rule, rebuild the cache:
+
+```matlab
+[space.basis,space.basis_dx,space.basis_dy] = ...
+    generate_basis_data_triangle(mesh,space,9);
+% Subsequent cached triangle evaluations must use rule 9.
 ```
 
-其中，`dim`为有限元函数的维数。如果`dim`为1，则为标量函数；如果`dim`为2，则为二维向量值函数，如此类推。`mesh`为该有限元网格基于的网格结构。`basis_type`规定有限元的类型，如下表所示：
+## Errors and verification
 
-|basis_type|有限元类型|
-|:-------:|:-----:|
-|P0        |P0元|
-|P1        |P1元|
-|P2        |P2元|
-|RT0    |RT0元|
-|BR    |BR元|
-|MTW      |Mardal-Tai-Winther元|
-|Ned1-1   |Nedelec元（第一类，1阶）|
-|Ned1-2   |Nedelec元（第一类，2阶）|
-|Ned2-1   |Nedelec元（第二类，1阶）|
+- `compute_error`: `L2`, `H1`, `H10` (H1 seminorm), `L_inf`, and `Hdiv`. The exact-solution callback is `u_fun(points,dx,dy)`, with one row per component.
+- `compute_norm`: `L2`, `H1`, `H1-semi`, `L_inf`, and `Hdiv-semi`.
+- `Hdiv` error is the full norm `sqrt(||e||_L2^2 + ||div(e)||_L2^2)`; `Hdiv-semi` is `||div(u_h)||_L2`. Both require two-component fields. Elementwise derivatives give broken quantities for nonconforming fields.
+- `L_inf` samples quadrature points; it is not an exact continuous maximum.
 
-生成的`mesh_FE`同样是一个结构体，其成员有
+Run the focused regression checks from the repository root:
 
-* `mesh_FE.N_lb`：每个单元中局部基函数的个数。此个数只针对标量函数，即如果是二维的线性有限元，`N_lb`也是3。
-* `mesh_FE.dim`：即为传入的参数`dim`。
-* `mesh_FE.P`：矩阵阶数为(2, Ndof)，其中Ndof为自由度的总个数。这里储存的是每个自由度所对应的坐标，如在线性元中，存放的坐标即为网格节点坐标，而在二次元中还存放着每条边中点的坐标。在某些有限元中，可能不需要用到矩阵`P`。
-* `mesh_FE.T`：矩阵阶数为(`N_lb`*`dim`, Nt)。与`mesh.T`类似却又不同，这里的每一列存储的是某个单元中的所有自由度编号。对于n维的有限元函数，如果需要取出其第i个分量所对应的自由度，则应取`(i-1)*N_lb+1:i*N_lb`行中的元素。
-* `mesh_FE.N_node`：有限元中自由度的总个数。**请注意，虽然这里的名称仍然保持为`N_node`，但有限元结构中已经没有节点(node)的概念，这里的node实际上为自由度。**
-* `mesh_FE.basis_type`：1\*`dim`向量。存放各个分量的基函数类型。如[202, 202]，或[301, 302]。
-* `mesh_FE.Dbndynodes`：向量，存放所有Dirichlet边界上对应的自由度编号。如果`mesh`中的某条边为Dirichlet边，那么该边上所对应的所有自由度为被标记为Dirichlet边界上的自由度，在处理Dirichlet边界时都将得到处理。
+```matlab
+addpath(pwd);
+addpath(fullfile(pwd,'test'));
+test_Hdiv;
+```
 
+These check divergence cancellation, nonzero divergence, exact interpolation, and constant-error L2 contributions with vector P1 fields. Other scripts under `test/` are exploratory, not a comprehensive regression suite.
 
-## 有限元的定义
+A separate local refinement experiment for the Poisson problem above, retaining three-point assembly and using nine-point error integration, gave:
 
+| Subdivisions per direction | L2 error | L2 order | H1 error | H1 order |
+| ---: | ---: | ---: | ---: | ---: |
+| 8 | 2.08012e-02 | — | 3.71880e-01 | — |
+| 16 | 5.18008e-03 | 2.0056 | 1.85299e-01 | 1.0050 |
+| 32 | 1.29373e-03 | 2.0014 | 9.25683e-02 | 1.0013 |
+| 64 | 3.23353e-04 | 2.0004 | 4.62740e-02 | 1.0003 |
+| 128 | 8.08331e-05 | 2.0001 | 2.31357e-02 | 1.0001 |
 
+Orders are `log2(E_N/E_2N)`. This experiment is not yet shipped as an automated convergence test. The default example uses three-point error integration, so its error values differ. These results validate this smooth Poisson case, not every element or boundary treatment. Stokes, magnetic diffusion, and ALE examples are not included; no CI workflow is configured.
 
-## 组装器
+## Source map
 
+| Files | Purpose |
+| --- | --- |
+| `mesh_*.m`, `orientation_consistence.m` | Mesh generation, topology, and spaces |
+| `basis_*.m`, `generate_basis_data_*.m` | Basis evaluation and caching |
+| `generate_Gauss_*.m`, `local_*.m`, `assemble_*.m` | Quadrature and assembly |
+| `compute_dof.m`, `interpolate.m`, `FE_function_*.m` | Degrees of freedom, interpolation, and evaluation |
+| `treat_Dirichlet*.m`, `get_Dbndynodes.m` | Boundary treatment |
+| `compute_error.m`, `compute_norm.m`, `plot_*.m` | Diagnostics and plotting |
+| `poisson/`, `test/` | Example problem and checks |
 
-## 误差计算
+## Origin and license
 
+The initial code grew out of Xiaoming He's finite element programming course at Missouri University of Science and Technology, followed by modifications and extensions. The original course reference is retained in the [Chinese README](README.zh-CN.md#来源与许可证).
 
-## 其他工具
-
-### 可视化
-
-## 开发
-
-### 创建新的有限元
-
-### 创建新的组装器
-
-## 范例
-
-### 入门：Poisson方程
-
-### 混合有限元：不可压缩Stokes方程
-
-### 非定常问题：磁扩散方程
-
-### 更多的扩展：以ALE方法为例
+The repository includes the [GNU General Public License, version 3](LICENSE.md).

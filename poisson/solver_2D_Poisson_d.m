@@ -17,7 +17,7 @@ rhs_fun = @fun_rhs;
 b = assemble_vector_2D(rhs_fun,mesh,mesh_test,0,0,1,Gauss_type_2D);
 
 bndy_fun = @fun_bndy;
-[A,b] = treat_Dirichlet_normal(A,b,mesh,mesh_trial,0,bndy_fun);
+[A,b] = treat_Dirichlet(A,b,mesh,mesh_trial,0,bndy_fun);
 
 solution = A\b;
 toc;

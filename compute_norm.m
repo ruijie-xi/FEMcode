@@ -34,10 +34,9 @@ elseif strcmp(error_type,'Hdiv-semi')
     for n = 1:mesh.N_elem
         vertices = mesh.P(:,mesh.T(:,n));
         [weights,pts] = generate_Gauss_local_triangle(vertices,Gauss_type);
-        err = err + Gauss_quad_2D_norm(vector,pts,weights,...
-                mesh,mesh_trial,n,1,0,1);
-        err = err + Gauss_quad_2D_norm(vector,pts,weights,...
-                mesh,mesh_trial,n,0,1,2);
+        div_value = FE_function_local_2D_read(vector,mesh,mesh_trial,n,1,1,0) ...
+                  + FE_function_local_2D_read(vector,mesh,mesh_trial,n,2,0,1);
+        err = err + div_value.^2*weights';
     end
     err = sqrt(err);
 
